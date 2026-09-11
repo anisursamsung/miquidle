@@ -36,6 +36,9 @@ struct Config {
 
     // Returns first existing configuration file path, ensuring user config on first launch
     static std::string find_default_config();
+
+    // Expands leading ~ in path
+    static std::string expand_home(const std::string& path);
 };
 
 } // namespace miquidle

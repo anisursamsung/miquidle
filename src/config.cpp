@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include <miqutoolkit/core/config.hpp>
 
 #include <fstream>
 #include <sstream>
@@ -18,7 +19,7 @@ static std::string trim(const std::string& str) {
     return str.substr(first, (last - first + 1));
 }
 
-static std::string expand_home(const std::string& path) {
+std::string Config::expand_home(const std::string& path) {
     if (path.empty()) return path;
     if (path[0] == '~') {
         const char* home = getenv("HOME");
@@ -48,38 +49,7 @@ std::string Config::get_user_config_path() {
 }
 
 std::string Config::ensure_user_config() {
-    std::string user_conf = get_user_config_path();
-    if (user_conf.empty()) return "";
-
-    if (fs::exists(user_conf)) {
-        return user_conf;
-    }
-
-    // First launch: create ~/.config/miquidle/ directory
-    fs::path user_path(user_conf);
-    std::error_code ec;
-    fs::create_directories(user_path.parent_path(), ec);
-
-    // Candidates to copy from
-    std::vector<std::string> defaults = {
-        "/usr/share/miquidle/miquidle.conf",
-        "/etc/xdg/miquidle/miquidle.conf",
-        "assets/miquidle.conf",
-        "/usr/local/share/miquidle/miquidle.conf"
-    };
-
-    for (const auto& cand : defaults) {
-        if (fs::exists(cand)) {
-            fs::copy_file(cand, user_conf, fs::copy_options::overwrite_existing, ec);
-            if (!ec) {
-                std::cout << "[miquidle] Initialized user configuration: copied default to " 
-                          << user_conf << "\n";
-                return user_conf;
-            }
-        }
-    }
-
-    return "";
+    return miqu::Config::ensure_user_config("miquidle", "miquidle.conf");
 }
 
 std::string Config::find_default_config() {

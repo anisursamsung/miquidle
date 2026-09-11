@@ -53,6 +53,8 @@ int main(int argc, char** argv) {
     // Determine config file to load
     if (config_path.empty()) {
         config_path = miquidle::Config::find_default_config();
+    } else {
+        config_path = miquidle::Config::expand_home(config_path);
     }
 
     if (!config_path.empty()) {
