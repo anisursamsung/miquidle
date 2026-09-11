@@ -4,6 +4,8 @@
 #include <systemd/sd-bus.h>
 #include <functional>
 #include <string>
+#include <thread>
+#include <atomic>
 
 namespace miquidle {
 
@@ -15,6 +17,7 @@ public:
     ~DBusManager();
 
     bool init();
+    void stop();
     int get_fd() const;
     void process();
 
@@ -33,10 +36,15 @@ private:
     sd_bus_slot* m_unlock_slot = nullptr;
     int m_inhibitor_fd = -1;
 
+    std::atomic<bool> m_running{false};
+    std::thread m_thread;
+
     Callback m_before_sleep_cb;
     Callback m_after_sleep_cb;
     Callback m_lock_cb;
     Callback m_unlock_cb;
+
+    void run_worker();
 
     static int handle_prepare_for_sleep(sd_bus_message* m, void* userdata, sd_bus_error* ret_error);
     static int handle_session_lock(sd_bus_message* m, void* userdata, sd_bus_error* ret_error);

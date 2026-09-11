@@ -4,22 +4,16 @@
 #include <iostream>
 #include <unistd.h>
 #include <fcntl.h>
+#include <cstring>
+#include <chrono>
+#include <thread>
 
 namespace miquidle {
 
 DBusManager::DBusManager() = default;
 
 DBusManager::~DBusManager() {
-    release_sleep_inhibitor();
-
-    if (m_sleep_slot) sd_bus_slot_unref(m_sleep_slot);
-    if (m_lock_slot) sd_bus_slot_unref(m_lock_slot);
-    if (m_unlock_slot) sd_bus_slot_unref(m_unlock_slot);
-
-    if (m_bus) {
-        sd_bus_flush_close_unref(m_bus);
-        m_bus = nullptr;
-    }
+    stop();
 }
 
 bool DBusManager::init() {
@@ -74,7 +68,69 @@ bool DBusManager::init() {
     }
 
     take_sleep_inhibitor();
+
+    m_running = true;
+    m_thread = std::thread(&DBusManager::run_worker, this);
+
     return true;
+}
+
+void DBusManager::stop() {
+    if (!m_running) return;
+    m_running = false;
+
+    if (m_bus) {
+        sd_bus_close(m_bus);
+    }
+
+    if (m_thread.joinable()) {
+        m_thread.join();
+    }
+
+    release_sleep_inhibitor();
+
+    if (m_sleep_slot) {
+        sd_bus_slot_unref(m_sleep_slot);
+        m_sleep_slot = nullptr;
+    }
+    if (m_lock_slot) {
+        sd_bus_slot_unref(m_lock_slot);
+        m_lock_slot = nullptr;
+    }
+    if (m_unlock_slot) {
+        sd_bus_slot_unref(m_unlock_slot);
+        m_unlock_slot = nullptr;
+    }
+
+    if (m_bus) {
+        sd_bus_flush_close_unref(m_bus);
+        m_bus = nullptr;
+    }
+}
+
+void DBusManager::run_worker() {
+    while (m_running) {
+        int r = sd_bus_process(m_bus, nullptr);
+        if (r < 0) {
+            if (m_running) {
+                std::cerr << "[miquidle] D-Bus process error: " << strerror(-r) << "\n";
+            }
+            break;
+        }
+        if (r > 0) {
+            // Further work queued to be dispatched immediately
+            continue;
+        }
+
+        // Wait with 250ms timeout to periodically check m_running
+        r = sd_bus_wait(m_bus, 250000);
+        if (r < 0 && -r != EINTR) {
+            if (m_running) {
+                std::cerr << "[miquidle] D-Bus wait error: " << strerror(-r) << "\n";
+            }
+            break;
+        }
+    }
 }
 
 int DBusManager::get_fd() const {
@@ -143,7 +199,10 @@ int DBusManager::handle_prepare_for_sleep(sd_bus_message* m, void* userdata, sd_
         if (self->m_before_sleep_cb) {
             self->m_before_sleep_cb();
         }
-        // Release inhibitor so sleep can proceed
+        // Give the lock application time to map and acquire the session lock
+        std::this_thread::sleep_for(std::chrono::milliseconds(150));
+
+        // Release inhibitor so sleep can proceed immediately
         self->release_sleep_inhibitor();
     } else {
         // Resuming from sleep

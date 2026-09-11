@@ -70,6 +70,12 @@ void IdleApp::setup_signals() {
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
     std::signal(SIGUSR1, signal_handler);
+
+    struct sigaction sa;
+    std::memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_DFL;
+    sa.sa_flags = SA_NOCLDWAIT;
+    sigaction(SIGCHLD, &sa, nullptr);
 }
 
 void IdleApp::setup_inotify() {
@@ -315,6 +321,12 @@ void IdleApp::trigger_immediate_idle() {
 void IdleApp::stop() {
     if (!m_running) return;
     m_running = false;
+
+#ifdef HAVE_SYSTEMD
+    if (m_dbus) {
+        m_dbus->stop();
+    }
+#endif
 
     clear_idle_listeners();
     if (m_engine) {
