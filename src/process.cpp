@@ -17,7 +17,15 @@ pid_t Process::execute(const std::string& command, bool wait) {
     }
 
     if (pid == 0) {
-        // In child: reset signals and run via shell
+        if (!wait) {
+            // Double-fork so grandchild is reparented to init and will not leak as zombie
+            if (fork() != 0) {
+                _exit(0);
+            }
+            setsid();
+        }
+
+        // In child/grandchild: reset signals and run via shell
         signal(SIGINT, SIG_DFL);
         signal(SIGTERM, SIG_DFL);
         signal(SIGCHLD, SIG_DFL);
@@ -31,15 +39,17 @@ pid_t Process::execute(const std::string& command, bool wait) {
         int status = 0;
         waitpid(pid, &status, 0);
         return pid;
+    } else {
+        // Collect intermediate child immediately
+        waitpid(pid, nullptr, 0);
+        return 0;
     }
-
-    return pid;
 }
 
 void Process::reap_children() {
     int status = 0;
     while (waitpid(-1, &status, WNOHANG) > 0) {
-        // reap all available zombies
+        // reap any remaining zombies
     }
 }
 
