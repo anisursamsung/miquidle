@@ -199,10 +199,8 @@ int DBusManager::handle_prepare_for_sleep(sd_bus_message* m, void* userdata, sd_
         if (self->m_before_sleep_cb) {
             self->m_before_sleep_cb();
         }
-        // Give the lock application time to map and acquire the session lock
-        std::this_thread::sleep_for(std::chrono::milliseconds(150));
 
-        // Release inhibitor so sleep can proceed immediately
+        // Release inhibitor now that before_sleep_cb has completed synchronously
         self->release_sleep_inhibitor();
     } else {
         // Resuming from sleep

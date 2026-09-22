@@ -260,11 +260,16 @@ void IdleApp::setup_dbus() {
     if (m_dbus->init()) {
         if (!m_config.before_sleep_cmd.empty()) {
             m_dbus->set_before_sleep_handler([this]() {
-                if (m_config.debug) {
-                    std::cout << "[miquidle] PrepareForSleep: executing before_sleep_cmd: "
-                              << m_config.before_sleep_cmd << "\n";
+                std::string cmd = m_config.before_sleep_cmd;
+                // Normalize "miqulock" to "miqulock -f" to ensure clean daemonization upon lock
+                if (cmd == "miqulock") {
+                    cmd = "miqulock -f";
                 }
-                execute_command(m_config.before_sleep_cmd);
+                if (m_config.debug) {
+                    std::cout << "[miquidle] PrepareForSleep: executing before_sleep_cmd synchronously: "
+                              << cmd << "\n";
+                }
+                Process::execute_sync(cmd, 4000);
             });
         }
 
