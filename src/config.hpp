@@ -32,7 +32,7 @@ struct Config {
     static std::string get_user_config_path();
 
     // Ensures user config exists, copying default on first launch if needed
-    static std::string ensure_user_config();
+    static std::string init_user_config();
 
     // Returns first existing configuration file path, ensuring user config on first launch
     static std::string find_default_config();

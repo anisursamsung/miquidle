@@ -48,13 +48,13 @@ std::string Config::get_user_config_path() {
     return "";
 }
 
-std::string Config::ensure_user_config() {
-    return miqu::Config::ensure_user_config("miquidle", "miquidle.conf");
+std::string Config::init_user_config() {
+    return miqu::Config::init_user_config("miquidle", "miquidle.conf");
 }
 
 std::string Config::find_default_config() {
-    // 1. Check/ensure user configuration on first launch
-    std::string user_conf = ensure_user_config();
+    // 1. Check user configuration (without auto-seeding)
+    std::string user_conf = get_user_config_path();
     if (!user_conf.empty() && fs::exists(user_conf)) {
         return user_conf;
     }
@@ -68,20 +68,6 @@ std::string Config::find_default_config() {
     } else if (home && *home) {
         std::string alt = std::string(home) + "/.config/miquidle/config";
         if (fs::exists(alt)) return alt;
-    }
-
-    // 3. Fallback to system locations directly
-    std::vector<std::string> fallbacks = {
-        "/usr/share/miquidle/miquidle.conf",
-        "/etc/xdg/miquidle/miquidle.conf",
-        "/etc/xdg/miquidle/config",
-        "assets/miquidle.conf"
-    };
-
-    for (const auto& path : fallbacks) {
-        if (fs::exists(path)) {
-            return path;
-        }
     }
 
     return "";

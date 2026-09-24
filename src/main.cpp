@@ -37,6 +37,14 @@ int main(int argc, char** argv) {
         if (arg == "-h" || arg == "--help") {
             print_usage(argv[0]);
             return 0;
+        } else if (arg == "--init-config") {
+            std::string res = miqu::Config::init_user_config("miquidle", "miquidle.conf");
+            if (!res.empty()) {
+                std::cout << "[miquidle] Configuration initialized at: " << res << "\n";
+            } else {
+                std::cout << "[miquidle] Configuration file already exists or could not be created.\n";
+            }
+            return 0;
         } else if (arg == "-d" || arg == "--debug") {
             config.debug = true;
         } else if (arg == "-w" || arg == "--wait") {
